@@ -1,127 +1,181 @@
-# Forecasting Models
+# Unemployment Rate Forecasting — Republic of Kazakhstan
 
-## 1. Naive Forecast (Random Walk / Persistence)
+## Problem Description
 
-For forecast horizon \( h \ge 1 \), the naive forecast is:
+Unemployment is one of the most important macroeconomic indicators.  When
+unemployment rises, households lose income, consumption declines, and the
+government must increase social spending.  Accurate forecasts help policymakers
+plan budgets, design labour-market programmes, and anticipate economic downturns.
 
-\[
-\hat{y}_{t+h \mid t} = y_t
-\]
+This project forecasts the **monthly unemployment rate** $y_t$ for Kazakhstan
+over a 24-month horizon (January 2024 – December 2025) using structural
+macroeconomic indicators and both classical econometric and deep-learning methods.
 
-Equivalently, the one-step-ahead forecast is:
+> **Key question:** Given exchange rates, oil prices, interest rates, GDP growth,
+> and the RUB/KZT cross-rate, can we predict how unemployment will change?
 
-\[
-\hat{y}_{t \mid t-1} = y_{t-1}
-\]
-
-This model serves as a simple baseline for highly persistent time series.
-
----
-
-## 2. Linear Regression with Lag Features
-
-Let the lag set be:
-
-\[
-\mathcal{L} = \{1, 3, 6, 12\}
-\]
-
-The regression model is:
-
-\[
-y_t = \beta_0 + \sum_{\ell \in \mathcal{L}} \beta_\ell y_{t-\ell} + \varepsilon_t
-\]
-
-where:
-
-- \( y_t \): unemployment rate at month \( t \)
-- \( y_{t-\ell} \): lagged unemployment rate
-- \( \beta_0, \beta_\ell \): regression coefficients
-- \( \varepsilon_t \): error term
-
-The prediction equation is:
-
-\[
-\hat{y}_t = \hat{\beta}_0 + \sum_{\ell \in \mathcal{L}} \hat{\beta}_\ell y_{t-\ell}
-\]
+**Note:** CPI columns are excluded — CPI forecasting is handled in a separate module.
 
 ---
 
-## 3. Elastic Net Regression
+## Data Sources
 
-Elastic Net estimates coefficients by solving the following penalized least squares problem:
+| Indicator | Frequency | Source | Period |
+|-----------|-----------|--------|--------|
+| Unemployment rate (%) | Monthly | stat.gov.kz | 2010–2025 |
+| USD/KZT exchange rate | Daily $\to$ monthly | National Bank of Kazakhstan | 2010–2026 |
+| Brent crude oil (USD/barrel) | Monthly | Compiled dataset | 2010–2025 |
+| GDP growth (%) | Monthly | stat.gov.kz / World Bank | 2010–2025 |
+| Gold price (USD/oz) | Monthly | Compiled dataset | 2010–2025 |
+| Interest rate (%) | Monthly | National Bank of Kazakhstan | 2010–2025 |
+| National Bank base rate (%) | Irregular $\to$ monthly | nationalbank.kz | 2015–2026 |
+| RUB/KZT exchange rate | Monthly | Derived via yfinance (USD/KZT $\div$ USD/RUB) | 2010–2025 |
+| USD/KZT volatility | Derived | Monthly std of daily rates | 2010–2026 |
 
-\[
-\min_{\beta_0, \boldsymbol{\beta}}
-\left\{
-\frac{1}{n} \sum_{t=1}^{n}
-\left(
-y_t - \beta_0 - \mathbf{x}_t^\top \boldsymbol{\beta}
-\right)^2
-+ \lambda
-\left(
-\alpha \lVert \boldsymbol{\beta} \rVert_1
-+ \frac{1-\alpha}{2} \lVert \boldsymbol{\beta} \rVert_2^2
-\right)
-\right\}
-\]
+### Data Quality
 
-where:
-
-- \( \mathbf{x}_t = [y_{t-1}, y_{t-3}, y_{t-6}, y_{t-12}]^\top \)
-- \( \lVert \boldsymbol{\beta} \rVert_1 = \sum_j |\beta_j| \): L1 penalty (sparsity)
-- \( \lVert \boldsymbol{\beta} \rVert_2^2 = \sum_j \beta_j^2 \): L2 penalty (shrinkage)
-- \( \lambda \ge 0 \): regularization strength
-- \( \alpha \in [0,1] \): mixing parameter
-  - \( \alpha = 1 \): Lasso
-  - \( \alpha = 0 \): Ridge
+- Primary dataset: **192 rows, zero missing values**
+- RUB/KZT: The local file (`RUB_KZT_mon.csv`) has only 24 months (Apr 2024–Mar 2026).
+  Historical data (2010–2024) is **derived** from yfinance by computing
+  $\text{RUB/KZT} = \text{USD/KZT} \times \text{RUB/USD}$.
 
 ---
 
-## 4. ARIMA Model — ARIMA(1,1,1)
+## Methodology
 
-Let the differenced series be defined as:
+### Feature Engineering — Stationarity via Differencing
 
-\[
-w_t = (1 - L)^d y_t
-\]
+Non-stationary regressors are transformed to first-differences:
 
-where \( L \) is the lag operator:
+$$\Delta x_t = x_t - x_{t-1}$$
 
-\[
-L y_t = y_{t-1}
-\]
+This removes unit-root trends.  The final feature matrix:
 
-The general ARIMA(\(p,d,q\)) model is:
+| Feature | Transformation |
+|---------|---------------|
+| $y_{t-1}$, $y_{t-12}$ | Autoregressive lags of the target |
+| `usd_kzt_diff` | $\Delta\text{USD/KZT}_t$ |
+| `Oil_crude_brent_diff` | $\Delta\text{Brent}_t$ |
+| `Base_Rate_diff` | $\Delta\text{Base Rate}_t$ |
+| `rub_kzt_diff` | $\Delta\text{RUB/KZT}_t$ |
+| `GDP_growth` | Already a rate (YoY %), kept as-is |
+| `interest_rate` | Level — captures policy stance |
+| `gold_price_usd_avg` | Level — safe-haven proxy |
+| `usd_kzt_volatility` | Monthly std of daily exchange rates |
 
-\[
-\phi(L) w_t = c + \theta(L)\varepsilon_t
-\]
+**Not yet available:** `STEI`, `Retail_Trade_diff`, `Industrial_Production_diff` —
+upload from [stat.gov.kz](https://stat.gov.kz) to complete the full specification.
 
-with:
+### Train / Test Split
 
-\[
-\phi(L) = 1 - \phi_1 L - \cdots - \phi_p L^p
-\]
+$$\text{Train:} \quad t \in [2015\text{-}01,\; 2023\text{-}12] \quad (n = 108)$$
 
-\[
-\theta(L) = 1 + \theta_1 L + \cdots + \theta_q L^q
-\]
+$$\text{Test:} \quad t \in [2024\text{-}01,\; 2025\text{-}12] \quad (n = 24)$$
 
-### ARIMA(1,1,1)
+### Models
 
-For the specific case \( (p,d,q) = (1,1,1) \):
+#### 1. SARIMA $(2,1,1)(1,1,1)_{12}$
 
-\[
-(1 - \phi_1 L)(1 - L)y_t = c + (1 + \theta_1 L)\varepsilon_t
-\]
+Univariate seasonal ARIMA — **baseline**.
 
-where:
+$$\Phi(B^{12})\,\phi(B)\,(1-B)(1-B^{12})\,y_t = c + \Theta(B^{12})\,\theta(B)\,\varepsilon_t$$
 
-- \( \phi_1 \): autoregressive coefficient
-- \( \theta_1 \): moving average coefficient
-- \( d = 1 \): first differencing
-- \( c \): constant term
-- \( \varepsilon_t \): white noise error
+#### 2. SARIMAX + Exogenous
 
-This model captures both autoregressive and moving average dynamics after differencing the series once to achieve stationarity.
+Same SARIMA structure augmented with differenced regressors.
+
+#### 3. ARDL (Autoregressive Distributed Lag)
+
+$$y_t = \alpha + \beta_1 y_{t-1} + \beta_{12} y_{t-12} + \gamma'\Delta X_t + \varepsilon_t$$
+
+HC1 robust standard errors.
+
+#### 4. Elastic Net
+
+$$\min_w \frac{1}{2n}\|y - Xw\|_2^2 + \alpha\left[\lambda\|w\|_1 + \frac{1-\lambda}{2}\|w\|_2^2\right]$$
+
+#### 5. Ridge Regression
+
+$$\min_w \frac{1}{2n}\|y - Xw\|_2^2 + \alpha\|w\|_2^2$$
+
+#### 6. Random Forest
+
+An ensemble of $B$ regression trees:
+
+$$\hat{y} = \frac{1}{B}\sum_{b=1}^{B} T_b(x)$$
+
+Feature importance measured by mean decrease in impurity (MDI).
+
+#### 7. ANN — Multi-Layer Perceptron
+
+$$\text{Input}(p) \to 128 \to 64 \to 32 \to 1$$
+
+ReLU activation, Adam optimiser, early stopping.
+
+#### 8. RNN — LSTM
+
+$$h_t = \text{LSTM}(x_t,\; h_{t-1})$$
+
+LSTM(64) $\to$ Dropout(0.2) $\to$ LSTM(32) $\to$ Dropout(0.2) $\to$ Dense(1).  Lookback $L = 12$.
+
+### Evaluation Metrics
+
+$$\text{MAE} = \frac{1}{n}\sum_{i=1}^{n}|y_i - \hat{y}_i|$$
+
+$$\text{RMSE} = \sqrt{\frac{1}{n}\sum_{i=1}^{n}(y_i - \hat{y}_i)^2}$$
+
+$$R^2 = 1 - \frac{SS_{res}}{SS_{tot}}$$
+
+$$\text{MASE} = \frac{\text{MAE}}{\frac{1}{n-1}\sum_{i=2}^{n}|y_i - y_{i-1}|}$$
+
+---
+
+## Tools Used
+
+| Tool | Version | Purpose |
+|------|---------|---------|
+| Python | 3.13 | Programming language |
+| pandas | 2.x | Data manipulation |
+| NumPy | 2.x | Numerical computation |
+| statsmodels | 0.14+ | SARIMA, SARIMAX, OLS, ADF tests |
+| scikit-learn | 1.x | ElasticNet, Ridge, Random Forest, MLP, scaling |
+| TensorFlow / Keras | 2.x | LSTM recurrent neural network |
+| matplotlib | 3.x | LaTeX-style visualisations |
+| seaborn | 0.13+ | Heatmaps |
+| yfinance | 0.2+ | Historical RUB/USD and Brent crude |
+
+---
+
+## Project Structure
+
+```
+PROJECT_DIPLOMA/
+├── data/
+│   ├── cpi_data/
+│   │   └── diploma_dataset.xlsx        # Primary dataset (192 months)
+│   ├── indicators/
+│   │   └── energymetrics_Kazakhstan_1990-2026.xlsx
+│   └── unemp/
+│       ├── unemployment_rate.xlsx
+│       ├── USD_TENGE.xlsx               # Daily USD/KZT
+│       ├── National Bank Base Rate.xlsx  # Central bank repo rate
+│       ├── RUB_KZT_mon.csv             # Monthly RUB/KZT (24 obs)
+│       └── POILBREUSDM.xlsx
+├── unemployment.ipynb                   # Main forecasting notebook
+├── code/parts/                          # Development notebooks
+├── plots/                               # Saved figures
+└── README.md                            # This file
+```
+
+---
+
+## References
+
+1. Bureau of National Statistics of Kazakhstan — [stat.gov.kz](https://stat.gov.kz)
+2. National Bank of Kazakhstan — [nationalbank.kz](https://nationalbank.kz)
+3. Hyndman, R.J. & Athanasopoulos, G. (2021). *Forecasting: Principles and Practice*, 3rd ed.
+4. Hamilton, J.D. (1994). *Time Series Analysis*. Princeton University Press.
+5. Pesaran, M.H. & Shin, Y. (1998). An autoregressive distributed-lag modelling approach. Cambridge University Press.
+6. Hochreiter, S. & Schmidhuber, J. (1997). Long Short-Term Memory. *Neural Computation*, 9(8).
+7. Zou, H. & Hastie, T. (2005). Regularization and variable selection via the elastic net. *JRSS-B*, 67(2).
+8. Breiman, L. (2001). Random Forests. *Machine Learning*, 45(1), 5–32.
