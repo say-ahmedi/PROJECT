@@ -1,0 +1,115 @@
+<role>
+
+Act as a Senior Principal Data Scientist and Lead Econometrician.
+
+</role>
+
+
+
+<context>
+
+I am preparing for my undergraduate diploma defense in Data Science. My thesis project involves developing an end-to-end macroeconomic forecasting pipeline for the Unemployment Rate in Kazakhstan, utilizing time-series analysis, classical econometrics, and machine learning.
+
+</context>
+
+
+
+<task>
+
+Provide a comprehensive guide, code architecture, and recommendations for building a production-ready unemployment forecasting pipeline. I need actionable, defense-ready material that proves these advanced methodologies yield superior results.
+
+</task>
+
+
+
+<requirements>
+
+Please address the following 7 pillars in detail:
+
+
+
+<pillar_1_data_assessment>
+
+Review my current target variable (Unemployment Rate). Advise on the sufficiency of this dataset. What specific exogenous economic indicators (e.g., local GDP, labor participation rates, industrial production indices, demographic data) should I integrate to make the analysis robust enough for a flawless diploma defense? Should I include regional (State/Oblast level) data?
+
+</pillar_1_data_assessment>
+
+
+
+<pillar_2_eda>
+
+Detail the steps for a rigorous Exploratory Data Analysis (EDA) phase. Include methods for testing stationarity (ADF/KPSS tests), seasonal decomposition (STL), and identifying lag structures using Autocorrelation (ACF) and Partial Autocorrelation (PACF) analysis.
+
+</pillar_2_eda>
+
+
+
+<pillar_3_advanced_feature_engineering>
+
+Explain how to implement the following advanced feature engineering strategies to make the results outstanding for the defense:
+
+1. Fourier Terms: Add sine and cosine waves to capture complex seasonality without seasonal differencing: $S_t = \sum_{k=1}^K \left[ \alpha_k \sin\left(\frac{2\pi kt}{12}\right) + \beta_k \cos\left(\frac{2\pi kt}{12}\right) \right]$ for $k=1,2,3$.
+
+2. Lagged Variables: Extend lags to $y_{t-2}$, $y_{t-3}$, $y_{t-6}$ and test their significance via Granger causality or LASSO selection.
+
+3. Rolling Statistics: 3-month and 6-month rolling mean/std of key commodities (e.g., Oil price) and exchange rates (e.g., USD/KZT).
+
+4. Interaction Terms: e.g., $\Delta\text{Oil} \times \Delta\text{USD/KZT}$ to capture the joint effect of commodity and currency shocks.
+
+5. Calendar Dummies: January effect (annual re-registration of unemployed in Kazakhstan), and Q1/Q4 dummies.
+
+6. Regime Indicators: Binary variables for known structural breaks: 2015-08 (Tenge float), 2020-03 (COVID lockdown), 2022-01 (January events).
+
+7. Dimensionality Reduction (PCA): Extract 2–3 Principal Components from the 13 CPI sub-indices to reduce dimensionality while retaining price-level information.
+
+</pillar_3_advanced_feature_engineering>
+
+
+
+<pillar_4_modeling_hybrid_stack>
+
+Design an architecture for a hybrid stack of exactly 6 to 7 models. The core objective is to benchmark Classical Econometrics against Machine Learning (ML) and Deep Learning (DL) architectures to evaluate whether modern AI methods are applicable/superior for this specific macroeconomic forecast.
+
+- Include classical models (e.g., SARIMAX, VAR).
+
+- Include ML models (e.g., XGBoost, Prophet).
+
+- Include DL architectures (e.g., LSTM, TCN).
+
+</pillar_4_modeling_hybrid_stack>
+
+
+
+<pillar_5_validation_strategy>
+
+Explain the implementation of Time-Series Walk-Forward Cross-Validation to prevent data leakage and ensure temporal integrity.
+
+</pillar_5_validation_strategy>
+
+
+
+<pillar_6_output_and_report>
+
+1. Provide Python code snippets (using matplotlib/seaborn/plotly) to generate high-resolution, defense-ready visualizations (e.g., Forecast vs. Actuals, Trend vs. Residuals, Error Distributions).
+
+2. Generate a comprehensive LaTeX report template. This must include formatted tables for comparing model metrics ($R^2$, $MAE$, $RMSE$, $MAPE$) and automated/structured sections for "Methodology" and "Results."
+
+</pillar_6_output_and_report>
+
+
+
+<pillar_7_repository_documentation>
+
+Provide a professional, structured README.md template for this project, outlining the architecture, data pipeline, and instructions for reproduction, suitable for an academic panel evaluating my diploma submission.
+
+</pillar_7_repository_documentation>
+
+</requirements>
+
+
+
+<output_formatting>
+
+Use markdown, bold text, and code blocks to make your response highly readable. Do not omit the LaTeX or README templates. Ensure mathematical formulas are formatted beautifully.
+
+</output_formatting>
