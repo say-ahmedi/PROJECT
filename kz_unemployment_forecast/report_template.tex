@@ -1,0 +1,57 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{longtable}
+\usepackage{hyperref}
+\title{Kazakhstan Unemployment Forecasting Report}
+\author{[Author Name]}
+\date{\today}
+\begin{document}
+\maketitle
+
+\section{Objective}
+[Describe research question, policy relevance, and forecasting horizon.]
+
+\section{Data and Preprocessing}
+[Describe data sources, transformations, merge logic, and date handling.]
+
+\section{Methodology}
+\subsection{Feature Engineering}
+[Describe Fourier terms, lags, rolling statistics (shifted to avoid lookahead),
+interactions, dummies, structural breaks, PCA.]
+
+\subsection{Model Stack}
+[Describe SARIMAX (stationarity enforced), VARX, ElasticNet,
+XGBoost (trained on differenced target), and Prophet.]
+
+\subsection{Validation Protocol}
+[Describe 24-month recursive walk-forward evaluation from 2024-01 to 2025-12.
+Recursive means predicted values substitute actual lags for multi-step horizons.]
+
+\section{Results}
+\input{outputs/model_metrics_table.tex}
+
+\section{Diagnostics}
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.9\textwidth]{figures/forecast_vs_actuals.png}
+    \caption{Forecast vs. Actuals}
+\end{figure}
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.7\textwidth]{figures/residual_distribution.png}
+    \caption{Residual Distribution}
+\end{figure}
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/feature_importance.png}
+    \caption{Feature Importance}
+\end{figure}
+
+\section{Conclusion}
+[Summarize main findings, limitations, and suggested extensions.]
+
+\end{document}

@@ -1,0 +1,17 @@
+\begin{table}
+\caption{Out-of-sample performance (walk-forward, 2024-01 to 2025-12).}
+\label{tab:model_metrics}
+\begin{tabular}{lrrr}
+\toprule
+Model & MAE & RMSE & R2 \\
+\midrule
+ElasticNet & 0.0062 & 0.0204 & 0.7773 \\
+Ensemble & 0.0063 & 0.0203 & 0.7810 \\
+XGBoost & 0.0067 & 0.0202 & 0.7833 \\
+SARIMAX & 0.0262 & 0.0342 & 0.3749 \\
+VARX & 0.0300 & 0.0413 & 0.0887 \\
+Prophet & 0.0317 & 0.0389 & 0.1912 \\
+SeasonalNaive & 0.0625 & 0.0791 & -2.3333 \\
+\bottomrule
+\end{tabular}
+\end{table}
