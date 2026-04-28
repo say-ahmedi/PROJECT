@@ -1,0 +1,12 @@
+# 1. Ignore everything
+*
+
+# 2. But do not ignore the specific directory
+!kz_unemployment_forecast/
+
+# 3. If you have files INSIDE that directory you want to keep, 
+# you must ensure Git doesn't ignore the contents
+!kz_unemployment_forecast/**
+
+# 4. Optional: If you want to keep the .gitignore file itself
+!.gitignore
