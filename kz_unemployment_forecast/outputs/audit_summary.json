@@ -1,0 +1,14 @@
+{
+  "commit_findings": [
+    "Frequent architecture resets between classical and DL stacks across commits.",
+    "A critical intermediate branch used direct lag leakage before shift(1) patching.",
+    "Deep learning was removed in a later hotfix despite original project scope."
+  ],
+  "kept_models": [
+    "SARIMAX",
+    "VARX",
+    "ElasticNet",
+    "RandomForest",
+    "GRU"
+  ]
+}

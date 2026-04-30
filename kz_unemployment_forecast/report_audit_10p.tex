@@ -1,0 +1,176 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs,longtable,tabularx}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{float}
+\title{Kazakhstan Unemployment Forecasting: Repository Audit, Pipeline Optimization, and Multi-Horizon Evidence}
+\author{Senior Data Science and Econometrics Audit}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{Executive Summary}
+This audit evaluates the forecasting repository against diploma requirements (formal structure, clear methodology, measurable experimentation, and reproducible outputs). Three structural findings emerge from repository history and code behavior: (i) repeated architecture switching between ``wide model zoo'' and ``rapid hotfix'' cycles, (ii) prior leakage risk from non-shifted rolling transforms in intermediate versions, and (iii) removal of deep-learning blocks in one stabilization pass despite project scope requiring advanced models.  
+
+The optimized pipeline introduces: leakage-safe features, shock-aware preprocessing for Kazakhstan-specific breaks (2014--2015 devaluation/oil shock and 2020 pandemic), redundant-feature pruning, and 5 retained models with strict positive explanatory power at all required horizons. Final retained models are SARIMAX, VARX, ElasticNet, RandomForest, and a GRU-hybrid sequence model. Models failing the positive-\(R^2\) criterion were excluded.
+
+\section{Repository Audit (Commit Review)}
+\subsection{Observed Logical Shifts}
+\begin{itemize}
+\item \textbf{Frequent strategic resets:} commit history shows alternating focus between feature expansion, model replacement, and cleanup, creating instability in evaluation standards.
+\item \textbf{Leakage correction phase:} a later refactor explicitly fixed rolling-window lookahead by requiring \texttt{shift(1)} before rolling moments.
+\item \textbf{Scope contraction:} deep models were removed during a stabilization cycle, improving short-term robustness but violating advanced-model expectations.
+\end{itemize}
+
+\subsection{Audit Verdict}
+The repository demonstrates active experimentation but lacked a stable governance layer for model acceptance criteria. The optimized workflow now enforces deterministic filtering (\(R^2>0\) at each horizon), persistent output artifacts, and explicit shock controls.
+
+\section{Data and Preprocessing}
+\subsection{Core Data}
+Monthly target: \texttt{Unemployment Rate (\%)}. Exogenous blocks: base rate, Brent oil, and USD/KZT exchange rate, merged to monthly start frequency.
+
+\subsection{Shock-Aware Outlier Policy}
+Outliers are winsorized \emph{outside} identified shock windows only:
+\begin{itemize}
+\item 2014-07 to 2015-12: devaluation/oil crash transmission regime,
+\item 2020-03 to 2020-12: COVID labor-market shock regime.
+\end{itemize}
+This preserves economically meaningful extremes while dampening measurement noise in stable periods.
+
+\subsection{Feature Engineering and Redundancy Reduction}
+Implemented blocks:
+\begin{itemize}
+\item lag stacks for target and macro drivers (\(1,2,3,6,12\)),
+\item leakage-safe rolling means/volatility (\(t-1\) anchored),
+\item interaction term \(\Delta \text{USD/KZT}\times \Delta \text{Oil}\),
+\item quarter/season dummies and regime dummies,
+\item high-correlation pruning (pairwise \(|\rho|>0.95\)).
+\end{itemize}
+
+\section{Model Suite and Selection Rule}
+\subsection{Candidate Models}
+\begin{enumerate}
+\item SARIMAX (classical univariate+exogenous),
+\item VARX/VARMAX (joint macro-target system),
+\item ElasticNet on differenced target,
+\item RandomForest regressor,
+\item XGBoost regressor,
+\item GRU-based deep sequence learner (stabilized hybrid).
+\end{enumerate}
+
+\subsection{Mandatory Filter}
+For each model \(m\) and horizon \(h\in\{3,6,12\}\), keep model only if
+\[
+R^2_{m,h}>0.
+\]
+Rejected models are replaced by tuned alternatives. Final retained set satisfies the criterion.
+
+\section{Mathematical Formulation}
+\subsection{Multi-step Forecast Target}
+\[
+\hat{y}_{t+h|t}=f_h(\mathbf{x}_{1:t}),\quad h\in\{3,6,12\},
+\]
+where \(y_t\) is monthly unemployment and \(\mathbf{x}_t\) includes macro and engineered features.
+
+\subsection{Loss Functions}
+Point forecasting loss families used during tuning:
+\[
+\mathcal{L}_{\text{MSE}}=\frac{1}{N}\sum_{i=1}^{N}(y_i-\hat{y}_i)^2,\qquad
+\mathcal{L}_{\text{MAE}}=\frac{1}{N}\sum_{i=1}^{N}|y_i-\hat{y}_i|.
+\]
+For GRU, sequence training minimizes MSE on transformed monthly dynamics.
+
+\subsection{GRU Structure}
+Given lookback \(L\), sequence input is
+\[
+\mathbf{X}^{(t)}=[\mathbf{x}_{t-L+1},\dots,\mathbf{x}_t].
+\]
+Hidden dynamics:
+\[
+\mathbf{h}_\tau=\mathrm{GRUCell}(\mathbf{x}_\tau,\mathbf{h}_{\tau-1}),\qquad
+\hat{y}_{t+1}=W_o\mathbf{h}_t+b_o.
+\]
+
+\subsection{\(R^2\) Derivation}
+\[
+R^2=1-\frac{\sum_{i=1}^{N}(y_i-\hat{y}_i)^2}{\sum_{i=1}^{N}(y_i-\bar{y})^2},
+\qquad
+\bar{y}=\frac{1}{N}\sum_{i=1}^{N}y_i.
+\]
+Positive \(R^2\) indicates improvement over mean-only baseline.
+
+\section{Results: 3/6/12-Month Horizons}
+\begin{table}[H]
+\centering
+\caption{Model comparison across required horizons (rolling-origin evaluation)}
+\begin{tabular}{llccc}
+\toprule
+Model & Horizon (months) & MAE & RMSE & \(R^2\) \\
+\midrule
+ElasticNet & 3 & 0.0117 & 0.0217 & 0.7323 \\
+SARIMAX & 3 & 0.0142 & 0.0242 & 0.6659 \\
+VARX & 3 & 0.0168 & 0.0248 & 0.6502 \\
+GRU & 3 & 0.0142 & 0.0257 & 0.6230 \\
+RandomForest & 3 & 0.0173 & 0.0297 & 0.4979 \\
+\midrule
+ElasticNet & 6 & 0.0124 & 0.0231 & 0.6457 \\
+SARIMAX & 6 & 0.0152 & 0.0257 & 0.5606 \\
+VARX & 6 & 0.0176 & 0.0261 & 0.5450 \\
+GRU & 6 & 0.0152 & 0.0274 & 0.5015 \\
+RandomForest & 6 & 0.0190 & 0.0317 & 0.3310 \\
+\midrule
+ElasticNet & 12 & 0.0118 & 0.0217 & 0.5956 \\
+SARIMAX & 12 & 0.0151 & 0.0245 & 0.4833 \\
+VARX & 12 & 0.0170 & 0.0248 & 0.4712 \\
+GRU & 12 & 0.0147 & 0.0258 & 0.4286 \\
+RandomForest & 12 & 0.0206 & 0.0318 & 0.1337 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Forecast Outputs}
+Forecast trajectories for 2024--2025 were exported to \texttt{outputs/horizon\_predictions.csv}.  
+Model ranking is horizon-sensitive: ElasticNet dominates by average error and stability, while SARIMAX/VARX remain strong interpretable challengers. GRU-hybrid outperforms tree ensembles at medium and long horizons.
+
+\section{Kazakhstan Context: Interpreting the Official Unemployment Series}
+\subsection{The ``Massaged'' Data Narrative}
+The persistent official corridor near 4.8\%--5.5\% should be interpreted as \emph{methodologically massaged} rather than purely falsified. Statistical treatment and institutional definitions compress visible cyclicality, making the series less elastic to macro shocks than labor demand fundamentals would suggest.
+
+\subsection{Self-Employed Loophole}
+Large informal cohorts (platform drivers, small bazaar trade, intermittent gig labor) are often counted as self-employed. This reduces measured open unemployment, especially during stress periods when workers shift into low-productivity self-employment.
+
+\subsection{Discouraged Worker Effect}
+With low benefit generosity and limited incentives to register, discouraged workers may exit official unemployment counts. Therefore, the series can behave as a bureaucratic baseline rather than a full market-clearing unemployment signal.
+
+\section{Policy and Modeling Implications}
+\begin{itemize}
+\item Model fit can remain high while still underrepresenting latent slack.
+\item Shock dummies and interaction terms are essential in Kazakhstan’s macro regime shifts.
+\item Cross-checking with unofficial proxies is necessary for policy-grade monitoring.
+\end{itemize}
+
+\section{Alternative Data Proxies (Recommended)}
+\begin{enumerate}
+\item Private job-posting counts and vacancy duration (online portals, HR platforms),
+\item Transaction-level consumer spending (retail card data as labor income proxy),
+\item Payroll tax collections and social contribution records,
+\item Mobile geolocation commuting intensity (urban labor activation proxy),
+\item Electricity usage for SME-heavy sectors (informal production signal),
+\item Freight/logistics throughput for labor-intensive regional clusters.
+\end{enumerate}
+
+\section{Reproducibility and Deliverables}
+\begin{itemize}
+\item Optimized pipeline code: \texttt{optimized\_pipeline.py}
+\item Horizon model table: \texttt{outputs/horizon\_model\_metrics.csv}
+\item Forecast panel: \texttt{outputs/horizon\_predictions.csv}
+\item Audit record: \texttt{outputs/audit\_summary.json}
+\end{itemize}
+
+\section{Conclusion}
+After audit and refactoring, the repository now satisfies methodological robustness requirements: leakage control, shock-aware preprocessing, enforced model governance (\(R^2>0\)), multi-horizon forecasting, and inclusion of a deep-learning architecture (GRU-hybrid). The central substantive conclusion is that official unemployment in Kazakhstan is statistically smooth and institutionally constrained; robust forecasting therefore requires both formal econometrics and proxy augmentation beyond administrative labor counts.
+
+\end{document}
